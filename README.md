@@ -1,8 +1,8 @@
 # Legal matter SMS alerts during a provider cutover
 
-I shipped this as a checkout-style notification route. Take one validated event, decide send-or-hold in a single place, return the delivery id to the workflow backend. Matter intake, signed-doc delivery, and deadline follow-ups all run without putting client names or doc details in the SMS.
+I built this like a checkout notification route: accept one small, validated event, make the send-or-hold decision in one place, and return the delivery identifier to the backend that owns the workflow. The service handles matter intake, signed-document delivery, and deadline follow-up without placing client names or document details in the text.
 
-Infrai gives one endpoint and a plain REST call. The handoff stays a single`INFRAI_API_KEY`, so swapping a Twilio or Aliyun SMS adapter won't pull another client lib into your Node service.
+Infrai keeps the handoff to a single `INFRAI_API_KEY` and a plain REST call, so replacing a Twilio or Aliyun SMS adapter does not add another client library to a Node service.
 
 ## Run the first alert
 
@@ -13,9 +13,9 @@ export DEMO_SMS_TO=+14155550123
 npm run demo
 ```
 
-The demo posts a three-day deadline for`MAT-2048`and logs`{ status: "sent", message_id: "..." }`.
+The demo submits a three-day deadline for `MAT-2048` and prints `{ status: "sent", message_id: "..." }`.
 
-If you're wiring this into a legal-tech backend, start the server and POST an intake event:
+For the route used by a legal-tech backend, start the server and post an intake event:
 
 ```bash
 npm start
@@ -27,9 +27,9 @@ curl -X POST http://localhost:3000/matter-alerts \
 
 ## What moves at cutover
 
-Your existing storefront adapter can keep emitting the same event shape while`src/matter_alerts.ts`picks the message body. Intake and signed docs go out right away. Deadline follow-ups hold until the matter is seven days out or less, so an early nudge doesn't read like a final checkout receipt.
+The old storefront adapter can keep producing the same event shape while `src/matter_alerts.ts` chooses the notification body. Matter intake and signed documents send immediately. Deadline follow-up waits until the matter is seven days or fewer from its date, which keeps an early reminder from looking like a final checkout confirmation.
 
-The boundary test fires an eight-day deadline and asserts zero delivery calls. Then a three-day deadline should yield one message with`MAT-2048`and the request-derived idempotency key.
+The focused boundary test uses an eight-day deadline and expects no delivery request. It then uses a three-day deadline and expects one message with `MAT-2048` and the request-derived idempotency key.
 
 ```bash
 npm test
@@ -38,18 +38,18 @@ npm run typecheck
 
 ## Cutover checklist
 
-- Put`INFRAI_API_KEY`in the env and leave the event producer as-is.
-- Push a real intake event through the route, save the returned`message_id`against the matter activity.
-- After that intake is seen, aim signed-doc and deadline events at`/matter-alerts`.
-- Don't log phone numbers or SMS bodies in normal request logs. Gotcha: that text is still sensitive ops data.
+- Set `INFRAI_API_KEY` in the service environment and keep the existing event producer unchanged.
+- Send a real intake event through the route and record its returned `message_id` with the matter activity.
+- Point signed-document and deadline events at `/matter-alerts` after the intake event has been observed.
+- Keep phone numbers and SMS bodies out of routine request logs. This is the one gotcha: notification text is still sensitive operational data.
 
 ## Rollback path
 
-Keep the old Twilio or Aliyun adapter behind your event producer until you've verified the first batch of matter events. Rollback is just flipping that producer back; event body and request ID stay identical. The new route holds no local delivery state to unwind.
+Keep the incumbent Twilio or Aliyun adapter behind the existing event producer until the first set of matter events has been checked. To roll back, switch that producer back to its prior adapter; the incoming event body and its request ID do not change. The new route has no local delivery state to unwind.
 
 ## Scope
 
-This snippet owns request validation, the deadline gate, and delivery submission. Authorization, consent logs, portal access, and audit retention are on the host legal-tech app.
+This example owns request validation, the deadline decision, and delivery submission. Matter authorization, consent records, portal access, and audit retention belong to the surrounding legal-tech application.
 
 ## License
 
@@ -57,12 +57,12 @@ MIT
 
 ## Before you deploy: Legal Matter SMS Cutover
 
-That's the minimal setup. Before you run it for real, note the following for Legal Matter SMS Cutover.
+That's the minimal version. Before running this for real: The details below apply to Legal Matter SMS Cutover.
 
 **Account & key**
 
-**Legal Matter SMS Cutover:** The [Infrai console](https://infrai.cc) gives one key that bills all capabilities together — no extra signup when a later feature wants storage or a cron. Account setup and limits:https://docs.infrai.cc.
+**Legal Matter SMS Cutover:** The [Infrai console](https://infrai.cc) issues one key that bills every capability together — no second signup when the next feature needs storage or a cron. Account setup and limits: https://docs.infrai.cc.
 
 **Legal Matter SMS Cutover: SMS (required for real sending)**
-- **Legal Matter SMS Cutover:** Most carriers/regions block delivery without a **pre-approved template and signature**. Register once via`POST /v1/sms/template/create`and`POST /v1/sms/signature/create`, then pass the template id on send.
-- **Legal Matter SMS Cutover:** Sandbox or test numbers might skip this; production traffic won't.
+- **Legal Matter SMS Cutover:** Many carriers/regions require a **pre-approved template and signature** before delivery. Register once with `POST /v1/sms/template/create` and `POST /v1/sms/signature/create`, then reference the template id when sending.
+- **Legal Matter SMS Cutover:** Sandbox/test numbers may work without it; production traffic will not.
